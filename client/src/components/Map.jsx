@@ -10,9 +10,11 @@ import {
 } from "../services/api";
 import Legend from "./Legend";
 import LoadingSpinner from "./LoadingSpinner";
+import africaGeoJSON from "../data/africa_shape.json";
 
 function MapComponent({ selectedData }) {
   const [mapData, setMapData] = useState(null);
+  console.log("mapData:", mapData);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -44,13 +46,14 @@ function MapComponent({ selectedData }) {
         }
         console.log("Processed data:", data);
         if (!data || !data.features || data.features.length === 0) {
+          console.error(`No ${selectedData} data available:`, data);
           throw new Error(`No ${selectedData} data available`);
         }
         setMapData(data);
       } catch (err) {
         console.error("Error fetching data:", err);
         setError(
-          `Failed to fetch ${selectedData} data. Please try again later.`
+          `Failed to fetch ${selectedData} data. Please try again later. Error: ${err.message}`
         );
         setMapData(null);
       } finally {
@@ -68,52 +71,45 @@ function MapComponent({ selectedData }) {
       fillOpacity: 0.7,
     };
 
-    if (!feature.geometry) {
-      return {
-        ...baseStyle,
-        fillColor: "transparent",
-      };
+    if (!feature.properties) {
+      console.log("No properties for feature:", feature);
+      return baseStyle;
     }
 
+    let fillColor;
     switch (selectedData) {
       case "country":
-        return {
-          ...baseStyle,
-          fillColor: getCountryColor(feature.properties.riskScore),
-        };
-      case "ipc":
-        return {
-          ...baseStyle,
-          fillColor: getIpcColor(feature.properties.ipcPhase),
-        };
-      case "fcs":
-        return {
-          ...baseStyle,
-          fillColor: getFcsColor(feature.properties.fcs),
-        };
-      case "climate":
-        return {
-          ...baseStyle,
-          fillColor: getClimateColor(feature.properties.climateRisk),
-        };
-      case "hazards":
-        return {
-          ...baseStyle,
-          fillColor: getHazardColor(feature.properties.severity),
-        };
-      default:
-        return {
-          ...baseStyle,
-          fillColor: "#cccccc",
-        };
-    }
-  };
+        const riskScore = feature.properties.riskScore;
+        const countryName = feature.properties.name;
+        console.log("Feature:", countryName, "Risk Score:", riskScore);
 
-  const getCountryColor = (riskScore) => {
-    if (riskScore === undefined) return "#cccccc";
-    if (riskScore <= 33) return "#00ff00";
-    if (riskScore <= 66) return "#ffff00";
-    return "#ff0000";
+        if (riskScore === undefined) {
+          console.log("No matching feature found for", countryName);
+          fillColor = "#cccccc";
+        } else {
+          fillColor = getCountryColor(riskScore);
+        }
+        break;
+      case "ipc":
+        fillColor = getIpcColor(feature.properties.ipcPhase);
+        break;
+      case "fcs":
+        fillColor = getFcsColor(feature.properties.fcs);
+        break;
+      case "climate":
+        fillColor = getClimateColor(feature.properties.climateRisk);
+        break;
+      case "hazards":
+        fillColor = getHazardColor(feature.properties.severity);
+        break;
+      default:
+        fillColor = "#cccccc";
+    }
+    console.log("Fill color for", feature.properties.name, ":", fillColor);
+    return {
+      ...baseStyle,
+      fillColor: fillColor,
+    };
   };
 
   const getIpcColor = (ipcPhase) => {
@@ -142,6 +138,16 @@ function MapComponent({ selectedData }) {
     return "#00ff00";
   };
 
+  const getCountryColor = (riskScore) => {
+    if (riskScore === null || riskScore === undefined) return "#cccccc";
+    riskScore = Number(riskScore);
+    if (isNaN(riskScore)) return "#cccccc";
+    if (riskScore <= 25) return "#00ff00";
+    if (riskScore <= 50) return "#ffff00";
+    if (riskScore <= 75) return "#ffa500";
+    return "#ff0000";
+  };
+
   const onEachFeature = (feature, layer) => {
     if (feature.properties) {
       layer.bindTooltip(() => getTooltipContent(feature.properties), {
@@ -154,29 +160,58 @@ function MapComponent({ selectedData }) {
     switch (selectedData) {
       case "country":
         return `
-          <strong>${properties.name || properties.id}</strong><br/>
-          Population: ${properties.population || "N/A"}<br/>
+          <strong>${properties.name || properties.id || "Unknown"}</strong><br/>
+          Population: ${
+            properties.population
+              ? properties.population.toLocaleString()
+              : "N/A"
+          }<br/>
           Income Group: ${properties.incomeGroup || "N/A"}
         `;
       case "ipc":
         return `
           <strong>${properties.id}</strong><br/>
           IPC Phase: ${properties.ipcPhase || "N/A"}<br/>
-          Population Affected: ${properties.populationAffected || "N/A"}
+          Population Affected: ${
+            properties.populationAffected
+              ? properties.populationAffected.toLocaleString()
+              : "N/A"
+          }
         `;
       case "fcs":
         return `
           <strong>${properties.country}</strong><br/>
-          FCS: ${properties.fcs || "N/A"}
+          FCS: ${properties.fcs ? properties.fcs.toFixed(2) : "N/A"}<br/>
+          Insufficient Food Consumption: ${
+            properties.insufficientFoodConsumption
+              ? (properties.insufficientFoodConsumption * 100).toFixed(2) + "%"
+              : "N/A"
+          }<br/>
+          Crisis or Above Coping: ${
+            properties.crisisOrAboveCoping
+              ? (properties.crisisOrAboveCoping * 100).toFixed(2) + "%"
+              : "N/A"
+          }
         `;
       case "climate":
         return `
           <strong>${properties.id}</strong><br/>
-          Climate Risk: ${properties.climateRisk || "N/A"}
+          Hydric Stress: ${
+            properties.hydricStress
+              ? (properties.hydricStress.prevalence * 100).toFixed(2) + "%"
+              : "N/A"
+          }<br/>
+          Vegetation Stress: ${
+            properties.vegetationStress
+              ? (properties.vegetationStress.prevalence * 100).toFixed(2) + "%"
+              : "N/A"
+          }
         `;
       case "hazards":
         return `
           <strong>${properties.id}</strong><br/>
+          Event: ${properties.event || "N/A"}<br/>
+          Type: ${properties.type || "N/A"}<br/>
           Severity: ${properties.severity || "N/A"}
         `;
       default:
@@ -218,11 +253,45 @@ function MapComponent({ selectedData }) {
           url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         />
+        {africaGeoJSON && mapData && (
+          <GeoJSON
+            key={`africa-${selectedData}`}
+            data={africaGeoJSON}
+            style={(feature) => {
+              const matchingFeature = mapData.features.find(
+                (f) => f.properties.id === feature.properties.id
+              );
+              if (matchingFeature) {
+                console.log(
+                  "Matching feature found for",
+                  feature.properties.name
+                );
+                feature.properties = {
+                  ...feature.properties,
+                  ...matchingFeature.properties,
+                };
+              } else {
+                console.log(
+                  "No matching feature found for",
+                  feature.properties.name
+                );
+              }
+              return getStyle(feature);
+            }}
+            onEachFeature={onEachFeature}
+          />
+        )}
         {mapData && mapData.features && mapData.features.length > 0 && (
           <GeoJSON
-            key={JSON.stringify(mapData)}
+            key={`countries-${selectedData}`}
             data={mapData}
-            style={getStyle}
+            pointToLayer={(feature, latlng) => {
+              const style = getStyle(feature);
+              return L.circleMarker(latlng, {
+                ...style,
+                radius: 8,
+              });
+            }}
             onEachFeature={onEachFeature}
           />
         )}

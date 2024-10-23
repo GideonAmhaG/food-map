@@ -6,9 +6,10 @@ const Legend = ({ selectedData }) => {
       case "country":
         return [
           { color: "#cccccc", label: "No data" },
-          { color: "#00ff00", label: "Low risk" },
-          { color: "#ffff00", label: "Medium risk" },
-          { color: "#ff0000", label: "High risk" },
+          { color: "#00ff00", label: "Low risk (0-25)" },
+          { color: "#ffff00", label: "Medium risk (26-50)" },
+          { color: "#ffa500", label: "High risk (51-75)" },
+          { color: "#ff0000", label: "Very high risk (76-100)" },
         ];
       case "ipc":
         return [

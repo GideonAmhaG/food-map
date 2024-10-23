@@ -1,26 +1,121 @@
 import axios from "axios";
+import africaGeoJSON from "../data/africa_shape.json";
 
-const BASE_URL = "https://api.hungermapdata.org";
+const BASE_URL =
+  "https://api.allorigins.win/raw?url=https://api.hungermapdata.org";
+
+export const getCountryBoundaries = () => {
+  return africaGeoJSON;
+};
 
 export const getCountryInfo = async () => {
   console.log("Fetching country info");
   try {
-    const response = await axios.get(`${BASE_URL}/v2/info/country`);
-    console.log("Country info response:", response.data);
-    if (response.data && response.data.body && response.data.body.countries) {
-      return {
-        type: "FeatureCollection",
-        features: response.data.body.countries.map((country) => ({
+    const [hungerMapResponse, restCountriesResponse] = await Promise.all([
+      axios.get(`${BASE_URL}/v2/info/country`),
+      axios.get("https://restcountries.com/v3.1/all?fields=name,cca3,latlng"),
+    ]);
+
+    if (hungerMapResponse.data?.body?.countries) {
+      const allCountries = hungerMapResponse.data.body.countries;
+
+      const countryCoordinates = restCountriesResponse.data.reduce(
+        (acc, country) => {
+          acc[country.cca3] = country.latlng;
+          return acc;
+        },
+        {}
+      );
+
+      const getRiskScore = (incomeGroup) => {
+        switch (incomeGroup) {
+          case "LOW":
+            return 80;
+          case "LOWMID":
+            return 60;
+          case "UPMID":
+            return 40;
+          case "HIGH":
+            return 20;
+          default:
+            return null;
+        }
+      };
+
+      const features = allCountries.map((country) => {
+        const coordinates = countryCoordinates[country.country?.iso3];
+        const riskScore = getRiskScore(country.income_group?.level);
+
+        return {
           type: "Feature",
           properties: {
-            ...country,
-            riskScore: Math.random() * 100, // Placeholder for risk score
+            id: country.country?.iso3,
+            name: country.country?.name,
+            population: country.population?.number,
+            incomeGroup: country.income_group?.level,
+            riskScore: riskScore,
           },
-          geometry: null,
-        })),
+          geometry: coordinates
+            ? {
+                type: "Point",
+                coordinates: [coordinates[1], coordinates[0]],
+              }
+            : null,
+        };
+      });
+
+      const africanCountries = africaGeoJSON.features
+        .filter(
+          (feature) =>
+            feature.properties && feature.properties.name && feature.id
+        )
+        .map((feature) => {
+          const country = allCountries.find(
+            (c) =>
+              c.country?.iso3 === feature.id ||
+              c.country?.iso3 === feature.properties?.iso3 ||
+              c.country?.iso2 === feature.properties?.iso2 ||
+              (c.country?.name &&
+                feature.properties?.name &&
+                c.country.name.toLowerCase() ===
+                  feature.properties.name.toLowerCase()) ||
+              (c.country?.name &&
+                feature.properties?.["country-abbrev"] &&
+                c.country.name.toLowerCase() ===
+                  feature.properties["country-abbrev"].toLowerCase())
+          );
+          const riskScore = country
+            ? getRiskScore(country.income_group?.level)
+            : null;
+
+          // console.log(`African country: ${feature.properties.name}`);
+          // console.log(`Matched country:`, country);
+          // console.log(`Risk Score:`, riskScore);
+
+          return {
+            ...feature,
+            properties: {
+              ...feature.properties,
+              id:
+                country?.country?.iso3 ||
+                feature.id ||
+                feature.properties?.iso3,
+              name: country?.country?.name || feature.properties?.name,
+              population: country?.population?.number,
+              incomeGroup: country?.income_group?.level,
+              riskScore: riskScore,
+            },
+          };
+        });
+      return {
+        type: "FeatureCollection",
+        features: [...africanCountries, ...features],
       };
     } else {
-      console.error("Unexpected country data structure:", response.data);
+      console.error(
+        "Unexpected country data structure:",
+        hungerMapResponse.data
+      );
       return { type: "FeatureCollection", features: [] };
     }
   } catch (error) {

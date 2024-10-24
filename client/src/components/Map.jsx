@@ -262,19 +262,10 @@ function MapComponent({ selectedData }) {
                 (f) => f.properties.id === feature.properties.id
               );
               if (matchingFeature) {
-                console.log(
-                  "Matching feature found for",
-                  feature.properties.name
-                );
                 feature.properties = {
                   ...feature.properties,
                   ...matchingFeature.properties,
                 };
-              } else {
-                console.log(
-                  "No matching feature found for",
-                  feature.properties.name
-                );
               }
               return getStyle(feature);
             }}

@@ -81,17 +81,20 @@ function MapComponent({ selectedData }) {
       case "country":
         const riskScore = feature.properties.riskScore;
         const countryName = feature.properties.name;
-        console.log("Feature:", countryName, "Risk Score:", riskScore);
+        // console.log("Feature:", countryName, "Risk Score:", riskScore);
 
         if (riskScore === undefined) {
-          console.log("No matching feature found for", countryName);
+          // console.log("No matching feature found for", countryName);
           fillColor = "#cccccc";
         } else {
           fillColor = getCountryColor(riskScore);
         }
         break;
       case "ipc":
-        fillColor = getIpcColor(feature.properties.ipcPhase);
+        const ipcPhase = feature.properties.ipcPhase;
+        console.log("ipc feature", feature);
+        console.log("ipc phase:", ipcPhase);
+        fillColor = ipcPhase ? getIpcColor(ipcPhase) : "#cccccc";
         break;
       case "fcs":
         fillColor = getFcsColor(feature.properties.fcs);
@@ -105,7 +108,7 @@ function MapComponent({ selectedData }) {
       default:
         fillColor = "#cccccc";
     }
-    console.log("Fill color for", feature.properties.name, ":", fillColor);
+    // console.log("Fill color for", feature.properties.name, ":", fillColor);
     return {
       ...baseStyle,
       fillColor: fillColor,
@@ -170,14 +173,14 @@ function MapComponent({ selectedData }) {
         `;
       case "ipc":
         return `
-          <strong>${properties.id}</strong><br/>
-          IPC Phase: ${properties.ipcPhase || "N/A"}<br/>
-          Population Affected: ${
-            properties.populationAffected
-              ? properties.populationAffected.toLocaleString()
-              : "N/A"
-          }
-        `;
+            <strong>${properties.name || properties.id}</strong><br/>
+            IPC Phase: ${properties.ipcPhase || "N/A"}<br/>
+            Population Affected: ${
+              properties.populationAffected
+                ? properties.populationAffected.toLocaleString()
+                : "N/A"
+            }
+          `;
       case "fcs":
         return `
           <strong>${properties.country}</strong><br/>
@@ -267,6 +270,14 @@ function MapComponent({ selectedData }) {
                   ...matchingFeature.properties,
                 };
               }
+              console.log(
+                "Feature properties after merge:",
+                feature.properties
+              );
+              console.log(
+                "IPC Phase after merge:",
+                feature.properties.ipcPhase
+              );
               return getStyle(feature);
             }}
             onEachFeature={onEachFeature}

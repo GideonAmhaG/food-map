@@ -129,14 +129,34 @@ export const getIpcData = async () => {
   try {
     const response = await axios.get(`${BASE_URL}/v1/ipc/peaks`);
     console.log("IPC data response:", response.data);
-    if (response.data && response.data.body) {
+    const ipcPeaks = response.data?.body?.ipc_peaks;
+
+    if (ipcPeaks) {
       return {
         type: "FeatureCollection",
-        features: Object.entries(response.data.body).map(([key, value]) => ({
-          type: "Feature",
-          properties: { ...value, id: key },
-          geometry: null,
-        })),
+        features: ipcPeaks.map((country) => {
+          let ipcPhase = 1; // Default to IPC Phase 1
+          if (country.phase_5_number > 0) {
+            ipcPhase = 5;
+          } else if (country.phase_4_number > 0) {
+            ipcPhase = 4;
+          } else if (country.phase_3_number > 0) {
+            ipcPhase = 3;
+          } else if (country.phase_2_number > 0) {
+            ipcPhase = 2;
+          }
+
+          return {
+            type: "Feature",
+            properties: {
+              id: country.iso3,
+              name: country.country_name,
+              ipcPhase: ipcPhase,
+              populationAffected: country.analyzed_population_number,
+            },
+            geometry: null,
+          };
+        }),
       };
     } else {
       console.error("Unexpected IPC data structure:", response.data);

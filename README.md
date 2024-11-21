@@ -77,9 +77,8 @@ Contributions are welcome. Please open an issue to discuss proposed changes or s
 
 ## Authors
 
-- [Your Name]
-- [Other Contributors]
+Gideon Amha Gebremedhin - [Github](https://github.com/GideonAmhaG) | [X](https://x.com/GideonAmha)
 
 ## License
 
-This project is licensed under the MIT License.
+[MIT](https://choosealicense.com/licenses/mit/)

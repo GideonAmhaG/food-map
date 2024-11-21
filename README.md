@@ -1,5 +1,7 @@
 # Global Food Security Map with Africa Focus
 
+This project is a work in progress. Features are being developed, and the application may not be fully functional yet. Please check back for updates.
+
 This project is a React-based web application that visualizes food security indicators globally, with a special focus on African countries. It uses Leaflet for map rendering and displays data from multiple sources.
 
 ## Features
